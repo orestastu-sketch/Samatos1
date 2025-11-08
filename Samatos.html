@@ -40,9 +40,10 @@
             100% { transform: rotate(360deg); }
         }
         
-        /* Pataisymas: įvesties laukas, kad skaičiai būtų aiškiai juodi */
+        /* Pataisymas: įvesties laukas - užtikrinti, kad tekstas būtų matomas ir juodas */
         .price-input-field {
-            color: #1f2937; /* Dark gray/black text */
+            color: #1f2937 !important; /* Naudojame !important, kad perrašytų bet kokį galimą Tailwind ar numatytąjį stilių */
+            background-color: white !important; /* Užtikriname, kad fonas yra baltas */
             text-align: right;
             font-weight: 600;
         }
@@ -212,10 +213,10 @@
      * @returns {string} The encoded Google search URL.
      */
     function generateGoogleSearchUrl(model, siteTarget = '') {
-        // Paieškos užklausa dabar naudoja TIK modelį. Jei nurodytas puslapis, pridedamas "site:" operatorius.
+        // Paieškos užklausa: naudoja TIK modelį.
         let query = model.trim(); 
         if (siteTarget) {
-            // Į paiešką keliauja ir modelis, ir "site:" operatorius.
+            // Jei nurodytas puslapis, pridedamas "site:" operatorius PRIEŠ modelį.
             query = `site:${siteTarget} ${query}`;
         }
         return `https://www.google.com/search?q=${encodeURIComponent(query)}`;
@@ -250,7 +251,6 @@
             const separator = ';'; 
             const BOM = "\uFEFF"; 
             
-            // Pakeista: "Įvesta Kaina (EUR)" į "Įvesta Kaina (EUR)"
             const header = ["Prekės Modelis", "Informacija", "Įvesta Kaina (EUR)", "Google Paieškos Nuoroda"];
             
             const rows = data.map(row => {
@@ -407,7 +407,7 @@
             summaryCell.className = 'px-6 py-4 whitespace-pre-wrap text-sm text-gray-700';
             summaryCell.innerHTML = item.summary.replace('SIMULIUOTA:', '<span class="font-bold text-gray-600">SIMULIUOTA:</span>'); 
 
-            // 3. Manual Price Input Cell (PATAISYTA EUR VIETA)
+            // 3. Manual Price Input Cell (Pataisyta, kad būtų matomas tekstas)
             const priceInputCell = row.insertCell();
             priceInputCell.className = 'px-6 py-4 whitespace-nowrap text-sm';
             
@@ -424,12 +424,12 @@
                         oninput="window.updateManualPrice(this)"
                         class="price-input-field w-full p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition duration-150"
                     />
-                    <span class="text-gray-700 font-semibold text-sm">EUR</span>
+                    <span class="text-gray-700 font-semibold text-sm w-8 text-left">EUR</span>
                 </div>
             `;
 
 
-            // 4. Search Links Cell (PATAISYTA: TIK MODELIS PAIEŠKAI)
+            // 4. Search Links Cell (UŽTIKRINIMAS: TIK MODELIS)
             const searchCell = row.insertCell();
             searchCell.className = 'px-6 py-4 whitespace-nowrap text-sm space-y-1 flex flex-col items-start';
             
