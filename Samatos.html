@@ -40,10 +40,10 @@
             100% { transform: rotate(360deg); }
         }
         
-        /* Fiksas: užtikrinti, kad įvesties tekstas būtų matomas ir juodas */
+        /* GALUTINIS FIKSAS: Užtikriname, kad teksto spalva būtų juoda ir perrašytų bet ką */
         .price-input-field {
-            color: #1f2937 !important; 
-            background-color: white !important; 
+            color: #000000 !important; /* Absoliučiai juoda */
+            background-color: white !important; /* Absoliučiai balta */
             text-align: right;
             font-weight: 600;
         }
@@ -232,9 +232,7 @@
         const trimmedModel = model.trim(); 
         
         if (siteTarget) {
-            // Fiksas: Google URL konstruojama taip, kad būtų galima naudoti site: operatorių.
-            // Google interpretuoja q= užklausą kaip visą paieškos laukelį, todėl jai perduodame
-            // visą eilutę su site: filtru ir modeliu.
+            // Google URL konstruojama su site: operatoriumi ir TIK modeliu.
             const queryWithSite = `site:${siteTarget} ${trimmedModel}`;
             return `https://www.google.com/search?q=${encodeURIComponent(queryWithSite)}`;
         }
@@ -428,7 +426,7 @@
             summaryCell.className = 'px-6 py-4 whitespace-pre-wrap text-sm text-gray-700';
             summaryCell.innerHTML = item.summary.replace('SIMULIUOTA:', '<span class="font-bold text-gray-600">SIMULIUOTA:</span>'); 
 
-            // 3. Manual Price Input Cell (Pataisyta, kad būtų matomas tekstas ir didesnis plotis)
+            // 3. Manual Price Input Cell 
             const priceInputCell = row.insertCell();
             priceInputCell.className = 'px-6 py-4 whitespace-nowrap text-sm';
             
@@ -450,7 +448,7 @@
             `;
 
 
-            // 4. Search Links Cell (Ištaisyta logikos klaida paieškoje)
+            // 4. Search Links Cell 
             const searchCell = row.insertCell();
             searchCell.className = 'px-6 py-4 whitespace-nowrap text-sm space-y-1 flex flex-col items-start';
             
