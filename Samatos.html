@@ -40,7 +40,7 @@
             100% { transform: rotate(360deg); }
         }
         
-        /* GALUTINIS FIKSAS: Užtikriname, kad teksto spalva būtų juoda ir perrašytų bet ką */
+        /* GALUTINIS FIKSAS: Garantuojame, kad įvesties langelio tekstas yra juodas */
         .price-input-field {
             color: #000000 !important; /* Absoliučiai juoda */
             background-color: white !important; /* Absoliučiai balta */
@@ -48,18 +48,17 @@
             font-weight: 600;
         }
 
-        /* Kainos įvesties langelio išplėtimas: Leidžiama jam užimti visą turimą vietą, atskyrus EUR ženklą */
+        /* Kainos įvesties langelio išplėtimas */
         .price-input-wrapper {
             display: flex;
             align-items: center;
             width: 100%;
         }
         .price-input-wrapper .price-input-field {
-            flex-grow: 1; /* Leidžia langeliui užimti didžiąją dalį vietos */
-            min-width: 0; /* Užtikrina, kad flex elementas nesulaužys išdėstymo */
+            flex-grow: 1; 
+            min-width: 0; 
         }
         .price-input-wrapper .currency-label {
-             /* Didesnis tarpas tarp input ir EUR */
             width: auto; 
             white-space: nowrap;
         }
@@ -81,7 +80,7 @@
 <div id="app" class="container">
     <h1 class="text-3xl font-extrabold text-gray-800 mb-6 border-b pb-2">Prekių Kainų Sąmatos Įrankis (HIBRIDINĖ VERSJJA)</h1>
     <div class="p-3 mb-6 bg-yellow-100 border border-yellow-400 text-yellow-700 rounded-lg">
-        **DĖMESIO:** Programėlė veikia **Hibridiniu Režimu**. Duomenys simuliuojami, bet pridėta rankinė kainos įvestis ir tikslios paieškos nuorodos.
+        **DĖMESIO:** Programėlė veikia **Hibridiniu Režimu**. Dėl naršyklės ypatumų, **Bkgrupe.lt** dabar atidaro TIESIOGINĘ paiešką svetainėje, kad Google paieškos laukelyje nebūtų `site:` filtro.
     </div>
 
     <div class="mb-6">
@@ -223,22 +222,27 @@
     }
 
     /**
-     * Generates a broad Google search URL for the given model.
+     * Generates a search URL for the given model, pritaikytą konkrečiai svetainei.
      * @param {string} model The product model.
-     * @param {string} siteTarget Optional site (e.g., 'bkgrupe.lt').
-     * @returns {string} The encoded Google search URL.
+     * @param {string} siteTarget 'bkgrupe.lt', 'kaina24.lt', or empty for general Google.
+     * @returns {string} The encoded search URL.
      */
-    function generateGoogleSearchUrl(model, siteTarget = '') {
+    function generateSearchUrl(model, siteTarget = '') {
         const trimmedModel = model.trim(); 
+        const encodedModel = encodeURIComponent(trimmedModel);
         
-        if (siteTarget) {
-            // Google URL konstruojama su site: operatoriumi ir TIK modeliu.
-            const queryWithSite = `site:${siteTarget} ${trimmedModel}`;
-            return `https://www.google.com/search?q=${encodeURIComponent(queryWithSite)}`;
+        if (siteTarget === 'bkgrupe.lt') {
+            // TIESIOGINĖ PAIEŠKA SVETAINĖJE: Naudojame bkgrupe.lt vidinę paiešką, kad išvengtume Google "site:" problemos.
+            return `https://bkgrupe.lt/?s=${encodedModel}`;
         }
         
-        // Bendra paieška: tik modelis
-        return `https://www.google.com/search?q=${encodeURIComponent(trimmedModel)}`;
+        if (siteTarget === 'kaina24.lt') {
+            // Google su pridėtu žodžiu "kaina24.lt" (be "site:")
+            return `https://www.google.com/search?q=${encodedModel}+kaina24.lt`;
+        }
+
+        // Bendra Google paieška: tik modelis
+        return `https://www.google.com/search?q=${encodedModel}`;
     }
 
 
@@ -335,7 +339,7 @@
         
         const normalizedModel = model.trim().toUpperCase();
         // Naudojama bendra paieška, be jokio siteTarget
-        const searchUrl = generateGoogleSearchUrl(model, ''); 
+        const searchUrl = generateSearchUrl(model, ''); 
         
         let summary;
 
@@ -448,7 +452,7 @@
             `;
 
 
-            // 4. Search Links Cell 
+            // 4. Search Links Cell (NAUJAS FIKSAS: Bkgrupe.lt atidaro tiesioginę svetainės paiešką)
             const searchCell = row.insertCell();
             searchCell.className = 'px-6 py-4 whitespace-nowrap text-sm space-y-1 flex flex-col items-start';
             
@@ -456,17 +460,17 @@
             const searchIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 mr-1"><path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.394l3.743 3.744a1 1 0 01-1.414 1.414l-3.744-3.743A7 7 0 012 9z" clip-rule="evenodd" /></svg>`;
 
             searchCell.innerHTML = `
-                <a href="${generateGoogleSearchUrl(item.model)}" target="_blank" class="inline-flex items-center justify-center px-2 py-1 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-red-500 hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition duration-150 ease-in-out w-full">
+                <a href="${generateSearchUrl(item.model)}" target="_blank" class="inline-flex items-center justify-center px-2 py-1 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-red-500 hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition duration-150 ease-in-out w-full">
                     ${searchIcon}
                     Google (Bendra)
                 </a>
-                <a href="${generateGoogleSearchUrl(item.model, 'bkgrupe.lt')}" target="_blank" class="inline-flex items-center justify-center px-2 py-1 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-indigo-500 hover:bg-indigo-600 transition duration-150 ease-in-out w-full">
+                <a href="${generateSearchUrl(item.model, 'bkgrupe.lt')}" target="_blank" class="inline-flex items-center justify-center px-2 py-1 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-indigo-500 hover:bg-indigo-600 transition duration-150 ease-in-out w-full">
                     ${searchIcon}
-                    Google bkgrupe.lt
+                    Bkgrupe.lt (Tiesioginė)
                 </a>
-                <a href="${generateGoogleSearchUrl(item.model, 'kaina24.lt')}" target="_blank" class="inline-flex items-center justify-center px-2 py-1 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-indigo-500 hover:bg-indigo-600 transition duration-150 ease-in-out w-full">
+                <a href="${generateSearchUrl(item.model, 'kaina24.lt')}" target="_blank" class="inline-flex items-center justify-center px-2 py-1 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-indigo-500 hover:bg-indigo-600 transition duration-150 ease-in-out w-full">
                     ${searchIcon}
-                    Google kaina24.lt
+                    Google (kaina24.lt)
                 </a>
             `;
         });
