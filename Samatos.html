@@ -40,12 +40,28 @@
             100% { transform: rotate(360deg); }
         }
         
-        /* Pataisymas: įvesties laukas - užtikrinti, kad tekstas būtų matomas ir juodas */
+        /* Fiksas: užtikrinti, kad įvesties tekstas būtų matomas ir juodas */
         .price-input-field {
-            color: #1f2937 !important; /* Naudojame !important, kad perrašytų bet kokį galimą Tailwind ar numatytąjį stilių */
-            background-color: white !important; /* Užtikriname, kad fonas yra baltas */
+            color: #1f2937 !important; 
+            background-color: white !important; 
             text-align: right;
             font-weight: 600;
+        }
+
+        /* Kainos įvesties langelio išplėtimas: Leidžiama jam užimti visą turimą vietą, atskyrus EUR ženklą */
+        .price-input-wrapper {
+            display: flex;
+            align-items: center;
+            width: 100%;
+        }
+        .price-input-wrapper .price-input-field {
+            flex-grow: 1; /* Leidžia langeliui užimti didžiąją dalį vietos */
+            min-width: 0; /* Užtikrina, kad flex elementas nesulaužys išdėstymo */
+        }
+        .price-input-wrapper .currency-label {
+             /* Didesnis tarpas tarp input ir EUR */
+            width: auto; 
+            white-space: nowrap;
         }
 
         /* Mobile optimization */
@@ -209,17 +225,22 @@
     /**
      * Generates a broad Google search URL for the given model.
      * @param {string} model The product model.
-     * @param {string} siteTarget Optional site (e.g., 'bkgrupe.lt'). If present, adds 'site:' prefix.
+     * @param {string} siteTarget Optional site (e.g., 'bkgrupe.lt').
      * @returns {string} The encoded Google search URL.
      */
     function generateGoogleSearchUrl(model, siteTarget = '') {
-        // Paieškos užklausa: naudoja TIK modelį.
-        let query = model.trim(); 
+        const trimmedModel = model.trim(); 
+        
         if (siteTarget) {
-            // Jei nurodytas puslapis, pridedamas "site:" operatorius PRIEŠ modelį.
-            query = `site:${siteTarget} ${query}`;
+            // Fiksas: Google URL konstruojama taip, kad būtų galima naudoti site: operatorių.
+            // Google interpretuoja q= užklausą kaip visą paieškos laukelį, todėl jai perduodame
+            // visą eilutę su site: filtru ir modeliu.
+            const queryWithSite = `site:${siteTarget} ${trimmedModel}`;
+            return `https://www.google.com/search?q=${encodeURIComponent(queryWithSite)}`;
         }
-        return `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+        
+        // Bendra paieška: tik modelis
+        return `https://www.google.com/search?q=${encodeURIComponent(trimmedModel)}`;
     }
 
 
@@ -407,14 +428,14 @@
             summaryCell.className = 'px-6 py-4 whitespace-pre-wrap text-sm text-gray-700';
             summaryCell.innerHTML = item.summary.replace('SIMULIUOTA:', '<span class="font-bold text-gray-600">SIMULIUOTA:</span>'); 
 
-            // 3. Manual Price Input Cell (Pataisyta, kad būtų matomas tekstas)
+            // 3. Manual Price Input Cell (Pataisyta, kad būtų matomas tekstas ir didesnis plotis)
             const priceInputCell = row.insertCell();
             priceInputCell.className = 'px-6 py-4 whitespace-nowrap text-sm';
             
             // Vertė gali būti su kableliu, todėl naudojama replace('.', ',') atvaizdavimui
             const displayValue = item.manualPrice !== null ? String(item.manualPrice).replace('.', ',') : '';
             priceInputCell.innerHTML = `
-                <div class="flex items-center space-x-2">
+                <div class="price-input-wrapper space-x-2">
                     <input 
                         type="text" 
                         inputmode="decimal"
@@ -422,14 +443,14 @@
                         value="${displayValue}"
                         placeholder="0,00"
                         oninput="window.updateManualPrice(this)"
-                        class="price-input-field w-full p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition duration-150"
+                        class="price-input-field p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition duration-150"
                     />
-                    <span class="text-gray-700 font-semibold text-sm w-8 text-left">EUR</span>
+                    <span class="currency-label text-gray-700 font-semibold text-sm">EUR</span>
                 </div>
             `;
 
 
-            // 4. Search Links Cell (UŽTIKRINIMAS: TIK MODELIS)
+            // 4. Search Links Cell (Ištaisyta logikos klaida paieškoje)
             const searchCell = row.insertCell();
             searchCell.className = 'px-6 py-4 whitespace-nowrap text-sm space-y-1 flex flex-col items-start';
             
@@ -439,7 +460,7 @@
             searchCell.innerHTML = `
                 <a href="${generateGoogleSearchUrl(item.model)}" target="_blank" class="inline-flex items-center justify-center px-2 py-1 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-red-500 hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition duration-150 ease-in-out w-full">
                     ${searchIcon}
-                    Google (Modelis)
+                    Google (Bendra)
                 </a>
                 <a href="${generateGoogleSearchUrl(item.model, 'bkgrupe.lt')}" target="_blank" class="inline-flex items-center justify-center px-2 py-1 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-indigo-500 hover:bg-indigo-600 transition duration-150 ease-in-out w-full">
                     ${searchIcon}
