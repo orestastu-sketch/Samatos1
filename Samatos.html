@@ -50,9 +50,9 @@
 <body>
 
 <div id="app" class="container">
-    <h1 class="text-3xl font-extrabold text-gray-800 mb-6 border-b pb-2">Prekių Kainų Sąmatos Įrankis (SIMULIACIJA)</h1>
-    <div class="p-3 mb-6 bg-red-100 border border-red-400 text-red-700 rounded-lg">
-        **DĖMESIO:** Dėl nuolatinių API klaidų, ši programėlė dabar veikia **Simuliacijos Režimu**. Duomenys grąžinami **iš vietinės (hardcode) atminties** ir **NĖRA** realūs paieškos rezultatai. Tai užtikrina, kad sąsaja veikia be API klaidų.
+    <h1 class="text-3xl font-extrabold text-gray-800 mb-6 border-b pb-2">Prekių Kainų Sąmatos Įrankis (HIBRIDINĖ VERSIJA)</h1>
+    <div class="p-3 mb-6 bg-yellow-100 border border-yellow-400 text-yellow-700 rounded-lg">
+        **DĖMESIO:** Dėl API klaidų programėlė veikia **Hibridiniu Režimu**. Ji simuliuoja duomenis, bet sugeneruoja tiesiogines nuorodas į Google paiešką, kad galėtumėte lengvai rasti realias kainas.
     </div>
 
     <div class="mb-6">
@@ -62,7 +62,7 @@
 
     <div class="flex flex-col sm:flex-row gap-4 mb-8">
         <button id="findPricesBtn" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition duration-300 ease-in-out disabled:opacity-50">
-            <span id="buttonText">Simuliuoti Kainų Paiešką</span>
+            <span id="buttonText">Simuliuoti Sąmatą ir Generuoti Paieškos Nuorodas</span>
             <span id="loadingSpinner" class="loading-ring hidden ml-2"></span>
         </button>
 
@@ -70,7 +70,6 @@
             Atsisiųsti Sąmatą (CSV)
         </button>
         
-        <!-- FALLBACK BUTTON -->
         <button id="showCsvBtn" disabled class="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition duration-300 ease-in-out disabled:opacity-50">
             Rodyti CSV tekstą (Kopijuoti)
         </button>
@@ -79,7 +78,7 @@
     <!-- Results Table -->
     <h2 class="text-xl font-bold text-gray-800 mt-8 mb-4">Rezultatai:</h2>
     <div id="resultsMessage" class="text-center text-gray-500 italic p-4 border border-dashed rounded-lg bg-gray-50">
-        Pradėkite įvesdami prekių modelius ir paspausdami "Simuliuoti Kainų Paiešką".
+        Pradėkite įvesdami prekių modelius ir paspausdami mygtuką.
     </div>
     
     <div id="resultsContainer" class="overflow-x-auto hidden">
@@ -87,8 +86,8 @@
             <thead class="bg-gray-50">
                 <tr>
                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4">Prekės Modelis</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/2">Informacija / Kaina (SIMULIUOTA)</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4">Šaltinis / Nuoroda</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/2">Informacija / Simuliuota Kaina</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4">Tiesioginė Paieška</th>
                 </tr>
             </thead>
             <tbody id="resultsTableBody" class="bg-white divide-y divide-gray-200">
@@ -97,7 +96,7 @@
         </table>
     </div>
 
-    <!-- Custom Modal for Errors -->
+    <!-- Custom Modals (Error, CSV) remain the same -->
     <div id="errorModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50">
         <div class="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full">
             <div class="flex justify-between items-start">
@@ -111,7 +110,6 @@
         </div>
     </div>
     
-    <!-- Custom Modal for CSV Copy/Paste Fallback -->
     <div id="csvModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50">
         <div class="bg-white rounded-lg shadow-xl p-6 max-w-2xl w-full">
             <div class="flex justify-between items-start mb-4">
@@ -180,7 +178,7 @@
             buttonText.textContent = 'Simuliuojama...';
         } else {
             loadingSpinner.classList.add('hidden');
-            buttonText.textContent = 'Simuliuoti Kainų Paiešką';
+            buttonText.textContent = 'Simuliuoti Sąmatą ir Generuoti Paieškos Nuorodas';
             
             if (hasResults) {
                 resultsContainer.classList.remove('hidden');
@@ -195,7 +193,7 @@
 
     /**
      * Converts the searchResults array to a CSV string.
-     * Uses semicolon for better European Excel compatibility.
+     * NOTE: The CSV will contain the raw search URL, not the HTML button.
      * @param {Array<Object>} data The data array.
      * @returns {string} The CSV formatted string.
      */
@@ -204,7 +202,7 @@
             const separator = ';'; 
             const BOM = "\uFEFF"; 
             
-            const header = ["Prekės Modelis", "Informacija", "Kainos Šaltinis / Nuoroda"];
+            const header = ["Prekės Modelis", "Informacija", "Google Paieškos Nuoroda"];
             
             const rows = data.map(row => {
                 const escapeField = (field) => {
@@ -215,9 +213,10 @@
                 
                 const escapedModel = escapeField(row.model || '');
                 const escapedSummary = escapeField(row.summary || '');
-                const escapedSource = escapeField(row.source || '');
+                // CSV uses the generated search URL directly
+                const escapedSearchUrl = escapeField(row.searchUrl || ''); 
                 
-                return [escapedModel, escapedSummary, escapedSource].join(separator);
+                return [escapedModel, escapedSummary, escapedSearchUrl].join(separator);
             });
             
             return BOM + [header.join(separator), ...rows].join('\n');
@@ -249,41 +248,52 @@
         
         URL.revokeObjectURL(url);
     }
+    
+    /**
+     * Generates a Google search URL for the given model and appends 'kaina Lietuvoje'.
+     * @param {string} model The product model.
+     * @returns {string} The encoded Google search URL.
+     */
+    function generateSearchUrl(model) {
+        const query = `${model} kaina Lietuvoje`;
+        return `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+    }
 
     // --- **SIMULIACIJA**: Bypassing Gemini API ---
 
     /**
      * Simulates fetching price and summary information using hardcoded data.
      * @param {string} model The product model to search for.
-     * @returns {Promise<Object>} An object containing model, summary, and source (MOCKED).
+     * @returns {Promise<Object>} An object containing model, summary, and searchUrl.
      */
     async function findPriceAndSummary(model) {
-        // Simulate network latency (250ms per item)
-        await new Promise(resolve => setTimeout(resolve, 250)); 
+        // Simulate network latency (500ms - 1500ms)
+        const delay = Math.random() * 1000 + 500;
+        await new Promise(resolve => setTimeout(resolve, delay)); 
         
         const normalizedModel = model.trim().toUpperCase();
+        const searchUrl = generateSearchUrl(model); // Generate the real search URL
         
         let summary;
-        let source = 'Vietinė Simuliacijos Duomenų Bazė';
 
         if (normalizedModel.includes('DS-7608NXI-K1/8P')) {
-            summary = 'SIMULIUOTA: Profesionalus Hikvision 8 kanalų NVR įrašymo įrenginys su 8 PoE prievadais ir AcuSense technologija. Apytikslė kaina Lietuvoje: **450 EUR - 550 EUR**.';
-            source = 'MOCK: Simuliuotas pavyzdinis šaltinis (https://simuliuojamas-katalogas.lt)';
+            summary = 'SIMULIUOTA: Profesionalus Hikvision 8 kanalų NVR įrašymo įrenginys su 8 PoE prievadais ir AcuSense technologija. Simuliuojama kaina: **450 EUR - 550 EUR**.';
         } else if (normalizedModel.includes('IPHONE 15 PRO')) {
-            summary = 'SIMULIUOTA: Naujausias Apple flagmanas su titano korpusu ir A17 Bionic lustu. Lietuvoje 128GB modelio kaina prasideda nuo **1200 EUR** (Mock data).';
-            source = 'MOCK: Simuliuota E-parduotuvė (https://pavyzdine-parduotuve.lt)';
+            summary = 'SIMULIUOTA: Naujausias Apple flagmanas su titano korpusu ir A17 Bionic lustu. Simuliuojama kaina: nuo **1200 EUR** (128GB).';
         } else if (normalizedModel.includes('NVIDIA GEFORCE RTX 4080')) {
-            summary = 'SIMULIUOTA: Aukštos klasės vaizdo plokštė, skirta 4K žaidimams. Apytikslė kaina Europoje: **1100 EUR - 1300 EUR** (Mock data).';
-            source = 'MOCK: Simuliuotas Tech Blogas (https://tech-simuliacija.com)';
+            summary = 'SIMULIUOTA: Aukštos klasės vaizdo plokštė, skirta 4K žaidimams. Simuliuojama kaina: **1100 EUR - 1300 EUR** (Mock data).';
+        } else if (normalizedModel.includes('DELL XPS 13')) {
+            summary = 'SIMULIUOTA: Plonas ir lengvas nešiojamas kompiuteris su 13.4 colio InfinityEdge ekranu. Simuliuojama kaina: nuo **1350 EUR**.';
+        } else if (normalizedModel.includes('SAMSUNG S24 ULTRA')) {
+            summary = 'SIMULIUOTA: Geriausias Samsung modelis, 6.8 colio Dynamic AMOLED 2x ekranas. Simuliuojama kaina: nuo **1499 EUR**.';
         } else {
-            summary = 'Simuliacija: Nepavyko rasti jokios informacijos apie šį modelį vietinėje duomenų bazėje. Bandykite įvesti tikslesnį modelį (pvz., Dell XPS 13).';
-            source = 'MOCK: Simuliacija';
+            summary = 'Simuliacija: Nepavyko rasti jokios informacijos apie šį modelį vietinėje duomenų bazėje. Naudokite paieškos mygtuką, kad rastumėte realius duomenis.';
         }
 
         return {
             model: model.trim(),
             summary: summary,
-            source: source
+            searchUrl: searchUrl 
         };
     }
 
@@ -306,7 +316,7 @@
         setLoading(true);
 
         resultsMessage.classList.remove('hidden');
-        resultsMessage.innerHTML = `<div class="loading-ring mr-2"></div> Pradedama **SIMULIUOTA** paieška...`;
+        resultsMessage.innerHTML = `<div class="loading-ring mr-2"></div> Pradedama **SIMULIUOTA** sąmatos generacija...`;
         resultsContainer.classList.add('hidden');
 
 
@@ -320,7 +330,7 @@
         }
 
         setLoading(false);
-        resultsMessage.textContent = `**SIMULIUOTA** paieška baigta. Rasta ${searchResults.length} rezultatai.`;
+        resultsMessage.textContent = `**SIMULIUOTA** sąmatos generacija baigta. Rasta ${searchResults.length} rezultatai. Dabar naudokite "Ieškoti Google" mygtukus.`;
     }
 
     /**
@@ -330,7 +340,7 @@
         resultsTableBody.innerHTML = '';
         searchResults.forEach(item => {
             const row = resultsTableBody.insertRow();
-            // Highlight simulation error rows yellow
+            // Highlight simulation warning rows yellow
             if (item.summary.includes('Nepavyko rasti jokios informacijos')) {
                 row.classList.add('bg-yellow-100');
             } else {
@@ -343,20 +353,20 @@
 
             const summaryCell = row.insertCell();
             summaryCell.className = 'px-6 py-4 whitespace-pre-wrap text-sm text-gray-700';
-            summaryCell.innerHTML = item.summary; // Use innerHTML to preserve bolded text
+            summaryCell.innerHTML = item.summary; 
 
-            const sourceCell = row.insertCell();
-            sourceCell.className = 'px-6 py-4 whitespace-pre-wrap text-xs text-red-500 font-bold';
+            const searchCell = row.insertCell();
+            searchCell.className = 'px-6 py-4 whitespace-nowrap text-sm';
             
-            // Simplified link extraction for simulation
-            const urlMatch = item.source.match(/https?:\/\/[^\s]+/);
-            if (urlMatch) {
-                const url = urlMatch[0];
-                const title = item.source.replace(url, '').replace('MOCK: ', '').trim().replace(/[\(\)]/g, '');
-                sourceCell.innerHTML = `<span class="text-red-500">SIMULIUOTA:</span> <a href="${url}" target="_blank" class="text-red-500 hover:text-red-700 underline">${title}</a>`;
-            } else {
-                sourceCell.textContent = item.source;
-            }
+            // Render the "Search on Google" button
+            searchCell.innerHTML = `
+                <a href="${item.searchUrl}" target="_blank" class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-red-500 hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition duration-150 ease-in-out">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 mr-1">
+                        <path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.394l3.743 3.744a1 1 0 01-1.414 1.414l-3.744-3.743A7 7 0 012 9z" clip-rule="evenodd" />
+                    </svg>
+                    Ieškoti Google
+                </a>
+            `;
         });
         
         if (searchResults.length > 0) {
@@ -415,8 +425,7 @@
     // Initial state setup
     function initializeApp() {
         setLoading(false);
-        // Pre-populate with the user's specific model and an example
-        modelsTextarea.value = "DS-7608NXI-K1/8P\nApple iPhone 15 Pro kaina Lietuvoje\nNežinomas Modelis";
+        modelsTextarea.value = "DS-7608NXI-K1/8P\nApple iPhone 15 Pro\nDell XPS 13 (2024 model)\nSamsung S24 Ultra\nNežinomas Modelis";
     }
 
     initializeApp();
