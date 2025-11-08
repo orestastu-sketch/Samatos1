@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="lt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kainų Sąmatos Generatorius</title>
+    <!-- Tailwind CSS CDN for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f7f7;
+            padding: 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+        }
+        .loading-ring {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            border: 3px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 3px solid #3b82f6;
+            -webkit-animation: spin 1s linear infinite;
+            animation: spin 1s linear infinite;
+        }
+        @-webkit-keyframes spin {
+            0% { -webkit-transform: rotate(0deg); }
+            100% { -webkit-transform: rotate(360deg); }
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* Mobile optimization */
+        @media (max-width: 640px) {
+            .container {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div id="app" class="container">
+    <h1 class="text-3xl font-extrabold text-gray-800 mb-6 border-b pb-2">Prekių Kainų Sąmatos Įrankis</h1>
+    <p class="text-gray-600 mb-6">Įveskite prekių modelius (vieną eilutėje), kurių kainas norite rasti. Naudosime Google paiešką per „Gemini“ API, kad surastume informaciją internete.</p>
+
+    <div class="mb-6">
+        <label for="productModels" class="block text-sm font-medium text-gray-700 mb-2">Prekių Modeliai (po vieną eilutėje):</label>
+        <textarea id="productModels" rows="6" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition duration-150" placeholder="Įveskite, pvz.:&#10;Dell XPS 13 (2024)&#10;Nvidia GeForce RTX 4080&#10;Samsung S24 Ultra 256GB"></textarea>
+    </div>
+
+    <div class="flex flex-col sm:flex-row gap-4 mb-8">
+        <button id="findPricesBtn" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition duration-300 ease-in-out disabled:opacity-50">
+            <span id="buttonText">Rasti Kainas Internete</span>
+            <span id="loadingSpinner" class="loading-ring hidden ml-2"></span>
+        </button>
+
+        <button id="downloadCsvBtn" disabled class="flex-1 bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition duration-300 ease-in-out disabled:opacity-50">
+            Atsisiųsti Sąmatą (CSV)
+        </button>
+        
+        <!-- NEW FALLBACK BUTTON -->
+        <button id="showCsvBtn" disabled class="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition duration-300 ease-in-out disabled:opacity-50">
+            Rodyti CSV tekstą (Kopijuoti)
+        </button>
+    </div>
+
+    <!-- Results Table -->
+    <h2 class="text-xl font-bold text-gray-800 mt-8 mb-4">Rezultatai:</h2>
+    <div id="resultsMessage" class="text-center text-gray-500 italic p-4 border border-dashed rounded-lg bg-gray-50">
+        Pradėkite įvesdami prekių modelius ir paspausdami "Rasti Kainas Internete".
+    </div>
+    
+    <div id="resultsContainer" class="overflow-x-auto hidden">
+        <table class="min-w-full divide-y divide-gray-200 shadow-sm rounded-lg">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4">Prekės Modelis</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/2">Informacija / Kaina (rasta internete)</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4">Šaltinis / Nuoroda</th>
+                </tr>
+            </thead>
+            <tbody id="resultsTableBody" class="bg-white divide-y divide-gray-200">
+                <!-- Results will be inserted here -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Custom Modal for Errors -->
+    <div id="errorModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full">
+            <div class="flex justify-between items-start">
+                <h3 class="text-lg font-bold text-red-600">Klaida</h3>
+                <button onclick="document.getElementById('errorModal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600">&times;</button>
+            </div>
+            <p id="errorModalMessage" class="mt-4 text-sm text-gray-700"></p>
+            <div class="mt-6 flex justify-end">
+                <button onclick="document.getElementById('errorModal').classList.add('hidden')" class="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-lg">Uždaryti</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Custom Modal for CSV Copy/Paste Fallback -->
+    <div id="csvModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-lg shadow-xl p-6 max-w-2xl w-full">
+            <div class="flex justify-between items-start mb-4">
+                <h3 class="text-xl font-bold text-gray-800">Sąmatos Tekstas (CSV)</h3>
+                <button onclick="document.getElementById('csvModal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600">&times;</button>
+            </div>
+            <p class="text-sm text-gray-600 mb-3">Nukopijuokite žemiau esantį tekstą ir įklijuokite jį į tekstinį failą (.txt), kurį galėsite importuoti į „Excel“ arba „Google Sheets“ (atskirtas kabliataškiu **;**).</p>
+            <textarea id="csvContent" rows="10" readonly class="w-full p-3 border border-gray-300 rounded-lg bg-gray-50 font-mono text-sm"></textarea>
+            <div class="mt-4 flex justify-end gap-3">
+                <button id="copyCsvBtn" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg transition duration-300">
+                    Kopijuoti Tekstą
+                </button>
+                <button onclick="document.getElementById('csvModal').classList.add('hidden')" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-4 rounded-lg">
+                    Uždaryti
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    // Firebase global variables setup (required by environment)
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+    const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+    const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+    // UI Elements
+    const modelsTextarea = document.getElementById('productModels');
+    const findPricesBtn = document.getElementById('findPricesBtn');
+    const downloadCsvBtn = document.getElementById('downloadCsvBtn');
+    const showCsvBtn = document.getElementById('showCsvBtn'); // NEW
+    const resultsTableBody = document.getElementById('resultsTableBody');
+    const resultsContainer = document.getElementById('resultsContainer');
+    const resultsMessage = document.getElementById('resultsMessage');
+    const loadingSpinner = document.getElementById('loadingSpinner');
+    const buttonText = document.getElementById('buttonText');
+    const errorModal = document.getElementById('errorModal');
+    const errorModalMessage = document.getElementById('errorModalMessage');
+    const csvModal = document.getElementById('csvModal'); // NEW
+    const csvContent = document.getElementById('csvContent'); // NEW
+    const copyCsvBtn = document.getElementById('copyCsvBtn'); // NEW
+
+    // State
+    let searchResults = [];
+
+    // --- Utility Functions ---
+
+    /**
+     * Shows a custom error modal instead of alert().
+     * @param {string} message The error message to display.
+     */
+    function showCustomError(message) {
+        errorModalMessage.textContent = message;
+        errorModal.classList.remove('hidden');
+    }
+
+    /**
+     * Handles the display of loading state.
+     * @param {boolean} isLoading True to show loading state, false to hide.
+     */
+    function setLoading(isLoading) {
+        findPricesBtn.disabled = isLoading;
+        const hasResults = searchResults.length > 0;
+        downloadCsvBtn.disabled = isLoading || !hasResults;
+        showCsvBtn.disabled = isLoading || !hasResults; // Control fallback button
+        
+        if (isLoading) {
+            loadingSpinner.classList.remove('hidden');
+            buttonText.textContent = 'Ieškoma...';
+        } else {
+            loadingSpinner.classList.add('hidden');
+            buttonText.textContent = 'Rasti Kainas Internete';
+            
+            if (hasResults) {
+                resultsContainer.classList.remove('hidden');
+                resultsMessage.classList.add('hidden');
+            } else {
+                resultsContainer.classList.add('hidden');
+                resultsMessage.classList.remove('hidden');
+                resultsMessage.textContent = 'Nerasta jokių rezultatų. Pabandykite pakoreguoti paieškos modelius.';
+            }
+        }
+    }
+
+    /**
+     * Converts the searchResults array to a CSV string.
+     * Reverts to semicolon for better European Excel compatibility.
+     * @param {Array<Object>} data The data array.
+     * @returns {string} The CSV formatted string.
+     */
+    function convertToCSV(data) {
+        try {
+            // Use semicolon (;) as separator for better regional compatibility
+            const separator = ';'; 
+            // Add BOM (Byte Order Mark) for proper UTF-8 handling in Excel
+            const BOM = "\uFEFF"; 
+            
+            const header = ["Prekės Modelis", "Informacija", "Kainos Šaltinis / Nuoroda"];
+            
+            const rows = data.map(row => {
+                // Escape double quotes by doubling them and enclose fields in double quotes
+                const escapeField = (field) => {
+                    if (typeof field !== 'string') field = String(field);
+                    return `"${field.replace(/"/g, '""')}"`;
+                };
+                
+                const escapedModel = escapeField(row.model || '');
+                const escapedSummary = escapeField(row.summary || '');
+                const escapedSource = escapeField(row.source || '');
+                
+                return [escapedModel, escapedSummary, escapedSource].join(separator);
+            });
+            
+            return BOM + [header.join(separator), ...rows].join('\n');
+        } catch (error) {
+            console.error("Klaida generuojant CSV:", error);
+            showCustomError(`Nepavyko sugeneruoti CSV failo: ${error.message}. Bandykite nukopijuoti tekstą.`);
+            return "";
+        }
+    }
+
+    /**
+     * Downloads a file with the given content and filename.
+     * @param {string} content The file content (CSV string).
+     * @param {string} filename The name of the file.
+     * @param {string} contentType The file MIME type.
+     */
+    function downloadFile(content, filename, contentType) {
+        if (!content) return;
+
+        const blob = new Blob([content], { type: contentType });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        
+        URL.revokeObjectURL(url);
+    }
+
+    // --- Gemini API Call & Core Logic ---
+
+    /**
+     * Fetches price and summary information for a single product model using Gemini API.
+     * @param {string} model The product model to search for.
+     * @returns {Promise<Object>} An object containing model, summary, and source.
+     */
+    async function findPriceAndSummary(model) {
+        const systemPrompt = `Tu esi automatizuotas kainų ieškiklis. Tavo užduotis yra naudoti Google paiešką, kad rastum tikslią ir naujausią informaciją apie nurodytą produktą. Atsakyk itin glaustai, vienu sakiniu, nurodydamas produkto pavadinimą, jo apytikslę kainą Lietuvoje arba Europoje (jei įmanoma, nurodyk valiutą) ir trumpą pagrindinę specifikaciją. Kainos ieškokite kuo tikslesnės. Jei kainos rasti neįmanoma, nurodykite tai.`;
+        
+        const userQuery = `Kaina ir apžvalga: ${model} Lietuva`;
+        
+        const apiKey = ""; // Canvas environment handles this key
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+
+        // Implement exponential backoff for retries
+        for (let attempt = 0; attempt < 3; attempt++) {
+            try {
+                const payload = {
+                    contents: [{ parts: [{ text: userQuery }] }],
+                    // IMPORTANT: Generate queries in both Lithuanian and English for better search results
+                    tools: [{ "google_search": { queries: [`${model} kaina Lietuva`, `${model} price Europe`] } }], 
+                    systemInstruction: {
+                        parts: [{ text: systemPrompt }]
+                    },
+                };
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API klaida: ${response.status} ${response.statusText}`);
+                }
+
+                const result = await response.json();
+                const candidate = result.candidates?.[0];
+
+                let summary = 'Informacija nerasta.';
+                let sourceUri = 'Nėra šaltinio';
+                
+                if (candidate && candidate.content?.parts?.[0]?.text) {
+                    summary = candidate.content.parts[0].text;
+                }
+
+                // Extract grounding sources
+                const groundingMetadata = candidate?.groundingMetadata;
+                if (groundingMetadata && groundingMetadata.groundingAttributions) {
+                    const firstSource = groundingMetadata.groundingAttributions[0].web;
+                    if (firstSource && firstSource.uri) {
+                        sourceUri = firstSource.title && firstSource.uri ? `${firstSource.title} (${firstSource.uri})` : firstSource.uri;
+                    }
+                }
+                
+                return {
+                    model: model.trim(),
+                    summary: summary,
+                    source: sourceUri
+                };
+
+            } catch (error) {
+                console.error(`Klaida atliekant Gemini paiešką (${model}, bandymas ${attempt + 1}):`, error);
+                if (attempt < 2) {
+                    const delay = Math.pow(2, attempt) * 1000;
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                } else {
+                    return {
+                        model: model.trim(),
+                        summary: `Klaida: Nepavyko gauti informacijos po ${attempt + 1} bandymų.`,
+                        source: 'API Klaida'
+                    };
+                }
+            }
+        }
+    }
+
+    /**
+     * Processes all product models and updates the UI.
+     */
+    async function processModels() {
+        const models = modelsTextarea.value
+            .split('\n')
+            .map(m => m.trim())
+            .filter(m => m.length > 0);
+
+        if (models.length === 0) {
+            showCustomError('Įveskite bent vieną prekės modelį, kad galėtumėte ieškoti.');
+            return;
+        }
+
+        resultsTableBody.innerHTML = '';
+        searchResults = [];
+        setLoading(true);
+
+        resultsMessage.classList.remove('hidden');
+        resultsMessage.innerHTML = `<div class="loading-ring mr-2"></div> Pradedama paieška... Būkite kantrūs, tai gali užtrukti.`;
+        resultsContainer.classList.add('hidden');
+
+
+        for (const model of models) {
+            resultsMessage.innerHTML = `<div class="loading-ring mr-2"></div> Ieškoma: <strong>${model}</strong>...`;
+
+            const result = await findPriceAndSummary(model);
+            searchResults.push(result);
+            
+            // Render the new row immediately
+            renderResults();
+        }
+
+        setLoading(false);
+        resultsMessage.textContent = `Paieška baigta. Rasta ${searchResults.length} rezultatai.`;
+    }
+
+    /**
+     * Renders the current searchResults array to the HTML table.
+     */
+    function renderResults() {
+        resultsTableBody.innerHTML = '';
+        searchResults.forEach(item => {
+            const row = resultsTableBody.insertRow();
+            row.classList.add('hover:bg-gray-100', 'transition', 'duration-150');
+
+            const modelCell = row.insertCell();
+            modelCell.className = 'px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900';
+            modelCell.textContent = item.model;
+
+            const summaryCell = row.insertCell();
+            summaryCell.className = 'px-6 py-4 whitespace-pre-wrap text-sm text-gray-700';
+            summaryCell.textContent = item.summary;
+
+            const sourceCell = row.insertCell();
+            sourceCell.className = 'px-6 py-4 whitespace-pre-wrap text-xs text-gray-500';
+            
+            try {
+                const urlMatch = item.source.match(/https?:\/\/[^\s]+/);
+                if (urlMatch) {
+                    const url = urlMatch[0];
+                    const title = item.source.replace(url, '').trim().replace(/[\(\)]/g, '').replace(/^-/, '').trim();
+                    sourceCell.innerHTML = `<a href="${url}" target="_blank" class="text-blue-500 hover:text-blue-700 underline">${title || 'Nuoroda'}</a>`;
+                } else {
+                    sourceCell.textContent = item.source;
+                }
+            } catch (e) {
+                sourceCell.textContent = item.source;
+            }
+        });
+        
+        if (searchResults.length > 0) {
+            resultsContainer.classList.remove('hidden');
+        }
+
+        downloadCsvBtn.disabled = searchResults.length === 0;
+        showCsvBtn.disabled = searchResults.length === 0;
+    }
+
+    // --- Event Listeners ---
+    findPricesBtn.addEventListener('click', processModels);
+    
+    // 1. Automatic Download (may fail in some environments)
+    downloadCsvBtn.addEventListener('click', () => {
+        if (searchResults.length > 0) {
+            const csv = convertToCSV(searchResults);
+            if (csv) {
+                const date = new Date().toISOString().slice(0, 10);
+                downloadFile(csv, `samata_${date}.csv`, 'text/csv;charset=utf-8;');
+            }
+        } else {
+            showCustomError('Nėra rezultatų atsisiuntimui.');
+        }
+    });
+    
+    // 2. CSV Text Fallback (Guaranteed to work)
+    showCsvBtn.addEventListener('click', () => {
+        if (searchResults.length > 0) {
+            const csv = convertToCSV(searchResults);
+            if (csv) {
+                csvContent.value = csv;
+                csvModal.classList.remove('hidden');
+                // Auto-select text for easy copying
+                csvContent.select(); 
+            }
+        } else {
+            showCustomError('Nėra rezultatų rodymui.');
+        }
+    });
+
+    // Copy CSV Text Logic
+    copyCsvBtn.addEventListener('click', () => {
+        csvContent.select();
+        // Use legacy command for maximum compatibility in iframe environment
+        try {
+            document.execCommand('copy');
+            copyCsvBtn.textContent = 'Nukopijuota!';
+            setTimeout(() => {
+                copyCsvBtn.textContent = 'Kopijuoti Tekstą';
+                csvModal.classList.add('hidden');
+            }, 1500);
+        } catch (err) {
+            showCustomError('Klaida kopijuojant: Jūsų naršyklė nepalaiko automatinio kopijavimo.');
+        }
+    });
+
+    // Initial state setup
+    function initializeApp() {
+        setLoading(false);
+        // Pre-populate with example data
+        modelsTextarea.value = "Naujas išmanusis telefonas 2024\nNešiojamas kompiuteris su RTX 4090";
+    }
+
+    initializeApp();
+</script>
+
+</body>
+</html>
+
