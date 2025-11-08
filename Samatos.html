@@ -78,9 +78,9 @@
 <body>
 
 <div id="app" class="container">
-    <h1 class="text-3xl font-extrabold text-gray-800 mb-6 border-b pb-2">Prekių Kainų Sąmatos Įrankis (Išplėstos Paieškos Parinktys)</h1>
-    <div class="p-3 mb-6 bg-yellow-100 border border-yellow-400 text-yellow-700 rounded-lg">
-        **PAIEŠKOS ATNAUJINIMAS:** Dabar turite dvi Bkgrupe.lt paieškos parinktis. **Tiksli Google Paieška** yra patikimiausia, bet rodo `site:` filtrą paieškos laukelyje.
+    <h1 class="text-3xl font-extrabold text-gray-800 mb-6 border-b pb-2">Prekių Kainų Sąmatos Įrankis (Kopijavimo Funkcija)</h1>
+    <div class="p-3 mb-6 bg-green-100 border border-green-400 text-green-700 rounded-lg">
+        **ATNAUJINTA PAIEŠKA:** Dabar galite atidaryti Bkgrupe.lt ir paspausti **"Kopijuoti Modelį"** mygtuką, kad automatiškai nukopijuotumėte prekę ir įklijuotumėte į svetainės paieškos laukelį.
     </div>
 
     <div class="mb-6">
@@ -116,7 +116,7 @@
                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">Prekės Modelis</th>
                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-2/5">Informacija / Simuliuota Kaina</th>
                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">Įvesta Kaina</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">Tiesioginė Paieška</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">Tiesioginė Paieška / Kopijavimas</th>
                 </tr>
             </thead>
             <tbody id="resultsTableBody" class="bg-white divide-y divide-gray-200">
@@ -224,7 +224,7 @@
     /**
      * Generates a search URL for the given model, pritaikytą konkrečiai svetainei.
      * @param {string} model The product model.
-     * @param {string} type 'general', 'bkgrupe_exact', 'bkgrupe_simple', 'kaina24'.
+     * @param {string} type 'general', 'bkgrupe_site', 'bkgrupe_direct', 'kaina24'.
      * @returns {string} The encoded search URL.
      */
     function generateSearchUrl(model, type) {
@@ -232,12 +232,12 @@
         const encodedModel = encodeURIComponent(trimmedModel);
         
         switch (type) {
-            case 'bkgrupe_exact':
-                // TIKSLI PAIEŠKA GOOGLE: Išlaiko site: filtrą rezultatų tikslumui (rodo site: laukelyje)
+            case 'bkgrupe_site':
+                // TIKSLI PAIEŠKA GOOGLE: Išlaiko site: filtrą rezultatų tikslumui
                 return `https://www.google.com/search?q=site:bkgrupe.lt+${encodedModel}`;
-            case 'bkgrupe_simple':
-                // PAPRASTA PAIEŠKA GOOGLE: Tik modelio pavadinimas (paieškos laukelis lieka švarus)
-                return `https://www.google.com/search?q=${encodedModel}`;
+            case 'bkgrupe_direct':
+                // TIESIOGINIS PUSLAPIS: Atidaro tik pagrindinį Bkgrupe.lt puslapį
+                return `https://bkgrupe.lt/`;
             case 'kaina24':
                 // KAINA24 (su pridėtu raktažodžiu)
                 return `https://www.google.com/search?q=${encodedModel}+kaina24.lt`;
@@ -248,6 +248,42 @@
         }
     }
 
+    /**
+     * Copies the given text to the clipboard and shows feedback on the element.
+     * @param {string} textToCopy The text to copy.
+     * @param {HTMLElement} buttonElement The button element to show feedback on.
+     */
+    function copyTextToClipboard(textToCopy, buttonElement) {
+        const originalText = buttonElement.innerHTML;
+        const tempTextArea = document.createElement('textarea');
+        tempTextArea.value = textToCopy;
+        document.body.appendChild(tempTextArea);
+        
+        try {
+            tempTextArea.select();
+            document.execCommand('copy');
+            
+            // Show successful copy feedback
+            buttonElement.classList.remove('bg-purple-500', 'hover:bg-purple-600');
+            buttonElement.classList.add('bg-green-500', 'hover:bg-green-600');
+            buttonElement.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 mr-1"><path fill-rule="evenodd" d="M16.704 4.032a.75.75 0 01.294.598V15.75A2.25 2.25 0 0114.75 18H5.25A2.25 2.25 0 013 15.75V4.75c0-1.036.845-1.875 1.875-1.875h7.25c.214 0 .42.046.604.133L16.704 4.032zM15.25 5h-10A.75.75 0 004.5 5.75v10A.75.75 0 005.25 17h9.5a.75.75 0 00.75-.75V5.75a.75.75 0 00-.75-.75z" clip-rule="evenodd" /></svg> Nukopijuota!`;
+
+        } catch (err) {
+            console.error('Kopijavimas nepavyko:', err);
+            buttonElement.classList.remove('bg-purple-500', 'hover:bg-purple-600');
+            buttonElement.classList.add('bg-red-500', 'hover:bg-red-600');
+            buttonElement.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 mr-1"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94l-1.72-1.72z" clip-rule="evenodd" /></svg> Klaida!`;
+        }
+        
+        document.body.removeChild(tempTextArea);
+
+        // Reset button after a short time
+        setTimeout(() => {
+            buttonElement.classList.remove('bg-green-500', 'hover:bg-green-600', 'bg-red-500', 'hover:bg-red-600');
+            buttonElement.classList.add('bg-purple-500', 'hover:bg-purple-600');
+            buttonElement.innerHTML = originalText;
+        }, 1500);
+    }
 
     // Attach to window so it can be called directly from oninput attribute
     window.updateManualPrice = function(inputElement) {
@@ -292,7 +328,8 @@
                 // Escape the manual price, formatting to 2 decimal places if present (naudojamas kablelis, kaip labiau įprasta Lietuvoje)
                 const priceValue = row.manualPrice !== null ? row.manualPrice.toFixed(2).replace('.', ',') : '';
                 const escapedManualPrice = escapeField(priceValue); 
-                const escapedSearchUrl = escapeField(row.searchUrl || ''); 
+                // Using a simplified Google search link for CSV
+                const escapedSearchUrl = escapeField(generateSearchUrl(row.model, 'general') || ''); 
                 
                 // Return row with the new price field
                 return [escapedModel, escapedSummary, escapedManualPrice, escapedSearchUrl].join(separator);
@@ -341,8 +378,6 @@
         await new Promise(resolve => setTimeout(resolve, delay)); 
         
         const normalizedModel = model.trim().toUpperCase();
-        // Naudojama bendra paieška
-        const searchUrl = generateSearchUrl(model, 'general'); 
         
         let summary;
 
@@ -364,7 +399,8 @@
         return {
             model: model.trim(),
             summary: summary,
-            searchUrl: searchUrl,
+            // Search URL is not strictly needed here anymore, as it's generated in renderResults for each button
+            searchUrl: '', 
             manualPrice: null // Initial value for manual price
         };
     }
@@ -457,25 +493,33 @@
             const searchCell = row.insertCell();
             searchCell.className = 'px-6 py-4 whitespace-nowrap text-sm space-y-1 flex flex-col items-start';
             
-            // Google Search Icon SVG (reused for all links)
+            const openIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 mr-1"><path d="M11.75 3a.75.75 0 00-.75.75V4.5h-5a3.5 3.5 0 00-3.5 3.5v8.25c0 .414.336.75.75.75h9.5a.75.75 0 00.75-.75V10h1.5v5.25a2.75 2.75 0 01-2.75 2.75H4.75A2.75 2.75 0 012 15.25V7.75A2.75 2.75 0 014.75 5h5.5V3.75a.75.75 0 00.75-.75zm4.844 7.632a.75.75 0 00.866-1.264l-3-2a.75.75 0 00-.866 1.264L14.49 10l-2.78 1.853a.75.75 0 00.865 1.264l3-2z" /></svg>`;
             const searchIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 mr-1"><path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.394l3.743 3.744a1 1 0 01-1.414 1.414l-3.744-3.743A7 7 0 012 9z" clip-rule="evenodd" /></svg>`;
+            const copyIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 mr-1"><path fill-rule="evenodd" d="M7.75 2.75A.75.75 0 018.5 2h5a.75.75 0 01.75.75v5a.75.75 0 01-1.5 0V4.5h-3a.75.75 0 01-.75-.75z" clip-rule="evenodd" /><path d="M6.25 3.5a.75.75 0 01.75-.75H12a.75.75 0 01.75.75v6.5a.75.75 0 01-.75.75H7a.75.75 0 01-.75-.75v-6.5zM15 11.75a.75.75 0 01.75.75v3.25A2.75 2.75 0 0113 18.5H4.75A2.75 2.75 0 012 15.75V7.75A2.75 2.75 0 014.75 5h3.25a.75.75 0 010 1.5H4.75a1.25 1.25 0 00-1.25 1.25v8A1.25 1.25 0 004.75 17h8.25a1.25 1.25 0 001.25-1.25v-3.25a.75.75 0 01.75-.75z" /></svg>`;
 
             searchCell.innerHTML = `
+                <!-- Bkgrupe.lt (Atidaryti Svetainę) -->
+                <a href="${generateSearchUrl(item.model, 'bkgrupe_direct')}" target="_blank" class="inline-flex items-center justify-center px-2 py-1 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-indigo-500 hover:bg-indigo-600 transition duration-150 ease-in-out w-full">
+                    ${openIcon}
+                    Bkgrupe.lt (Atidaryti Svetainę)
+                </a>
+                
+                <!-- Kopijuoti Modelį -->
+                <button onclick="window.copyTextToClipboard('${item.model.replace(/'/g, "\\'")}', this)" class="inline-flex items-center justify-center px-2 py-1 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-purple-500 hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition duration-150 ease-in-out w-full">
+                    ${copyIcon}
+                    Kopijuoti Modelį
+                </button>
+
+                <!-- Kaina24.lt (Google Paieška) -->
+                <a href="${generateSearchUrl(item.model, 'kaina24')}" target="_blank" class="inline-flex items-center justify-center px-2 py-1 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-indigo-500 hover:bg-indigo-600 transition duration-150 ease-in-out w-full">
+                    ${searchIcon}
+                    Kaina24.lt (Google Paieška)
+                </a>
+                
+                <!-- Google (Bendra) -->
                 <a href="${generateSearchUrl(item.model, 'general')}" target="_blank" class="inline-flex items-center justify-center px-2 py-1 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-red-500 hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition duration-150 ease-in-out w-full">
                     ${searchIcon}
                     Google (Bendra)
-                </a>
-                <a href="${generateSearchUrl(item.model, 'bkgrupe_exact')}" target="_blank" class="inline-flex items-center justify-center px-2 py-1 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-indigo-500 hover:bg-indigo-600 transition duration-150 ease-in-out w-full">
-                    ${searchIcon}
-                    Bkgrupe.lt (Tiksli Google Paieška)
-                </a>
-                <a href="${generateSearchUrl(item.model, 'bkgrupe_simple')}" target="_blank" class="inline-flex items-center justify-center px-2 py-1 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-purple-500 hover:bg-purple-600 transition duration-150 ease-in-out w-full">
-                    ${searchIcon}
-                    Bkgrupe.lt (Paieškos Laukas)
-                </a>
-                <a href="${generateSearchUrl(item.model, 'kaina24')}" target="_blank" class="inline-flex items-center justify-center px-2 py-1 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-indigo-500 hover:bg-indigo-600 transition duration-150 ease-in-out w-full">
-                    ${searchIcon}
-                    Kaina24.lt (Tiksli Google Paieška)
                 </a>
             `;
         });
@@ -543,5 +587,4 @@
 
 </body>
 </html>
-
 
