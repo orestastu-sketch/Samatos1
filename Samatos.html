@@ -14,7 +14,7 @@
             padding: 20px;
         }
         .container {
-            max-width: 900px;
+            max-width: 1100px; /* Padidinta, kad tilptų naujas stulpelis */
             margin: 0 auto;
             background: white;
             padding: 2rem;
@@ -44,6 +44,10 @@
             .container {
                 padding: 1rem;
             }
+            .table th, .table td {
+                padding: 8px 4px;
+                font-size: 0.75rem;
+            }
         }
     </style>
 </head>
@@ -52,7 +56,7 @@
 <div id="app" class="container">
     <h1 class="text-3xl font-extrabold text-gray-800 mb-6 border-b pb-2">Prekių Kainų Sąmatos Įrankis (HIBRIDINĖ VERSIJA)</h1>
     <div class="p-3 mb-6 bg-yellow-100 border border-yellow-400 text-yellow-700 rounded-lg">
-        **DĖMESIO:** Dėl API klaidų programėlė veikia **Hibridiniu Režimu**. Ji simuliuoja duomenis, bet sugeneruoja tiesiogines nuorodas į Google paiešką, kad galėtumėte lengvai rasti realias kainas.
+        **DĖMESIO:** Dėl API klaidų programėlė veikia **Hibridiniu Režimu**. Duomenys simuliuojami, bet pridėta rankinė kainos įvestis ir tiesioginės paieškos nuorodos.
     </div>
 
     <div class="mb-6">
@@ -82,12 +86,13 @@
     </div>
     
     <div id="resultsContainer" class="overflow-x-auto hidden">
-        <table class="min-w-full divide-y divide-gray-200 shadow-sm rounded-lg">
+        <table class="min-w-full divide-y divide-gray-200 shadow-sm rounded-lg table">
             <thead class="bg-gray-50">
                 <tr>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4">Prekės Modelis</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/2">Informacija / Simuliuota Kaina</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4">Tiesioginė Paieška</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">Prekės Modelis</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-2/5">Informacija / Simuliuota Kaina</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">Įvesta Kaina (EUR)</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">Tiesioginė Paieška</th>
                 </tr>
             </thead>
             <tbody id="resultsTableBody" class="bg-white divide-y divide-gray-200">
@@ -150,6 +155,7 @@
     const copyCsvBtn = document.getElementById('copyCsvBtn'); 
 
     // State
+    /** @type {Array<{model: string, summary: string, searchUrl: string, manualPrice: number | null}>} */
     let searchResults = [];
 
     // --- Utility Functions ---
@@ -192,8 +198,43 @@
     }
 
     /**
+     * Generates a broad Google search URL for the given model.
+     * @param {string} model The product model.
+     * @returns {string} The encoded Google search URL.
+     */
+    function generateGoogleSearchUrl(model) {
+        const query = `${model} kaina Lietuvoje`;
+        return `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+    }
+
+    /**
+     * Generates a Google search URL targeting a specific site.
+     * @param {string} model The product model.
+     * @param {string} site The target site (e.g., 'bkgrupe.lt').
+     * @returns {string} The encoded Google search URL for the site.
+     */
+    function generateSiteSearchUrl(model, site) {
+        // Search query: "site:bkgrupe.lt [model]"
+        const query = `site:${site} ${model}`;
+        return `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+    }
+
+    // Attach to window so it can be called directly from oninput attribute
+    window.updateManualPrice = function(inputElement) {
+        const index = parseInt(inputElement.getAttribute('data-index'), 10);
+        const value = parseFloat(inputElement.value);
+
+        if (index >= 0 && index < searchResults.length) {
+            // Save as number or null if input is empty/invalid
+            searchResults[index].manualPrice = isNaN(value) ? null : value;
+            // No need to re-render the whole table, just update state
+            // console.log(`Updated model ${searchResults[index].model} price to: ${searchResults[index].manualPrice}`); 
+        }
+    };
+
+
+    /**
      * Converts the searchResults array to a CSV string.
-     * NOTE: The CSV will contain the raw search URL, not the HTML button.
      * @param {Array<Object>} data The data array.
      * @returns {string} The CSV formatted string.
      */
@@ -202,7 +243,8 @@
             const separator = ';'; 
             const BOM = "\uFEFF"; 
             
-            const header = ["Prekės Modelis", "Informacija", "Google Paieškos Nuoroda"];
+            // NEW HEADER: Added "Įvesta Kaina (EUR)"
+            const header = ["Prekės Modelis", "Informacija", "Įvesta Kaina (EUR)", "Google Paieškos Nuoroda"];
             
             const rows = data.map(row => {
                 const escapeField = (field) => {
@@ -213,10 +255,12 @@
                 
                 const escapedModel = escapeField(row.model || '');
                 const escapedSummary = escapeField(row.summary || '');
-                // CSV uses the generated search URL directly
+                // Escape the manual price, formatting to 2 decimal places if present
+                const escapedManualPrice = escapeField(row.manualPrice !== null ? row.manualPrice.toFixed(2) : ''); 
                 const escapedSearchUrl = escapeField(row.searchUrl || ''); 
                 
-                return [escapedModel, escapedSummary, escapedSearchUrl].join(separator);
+                // Return row with the new price field
+                return [escapedModel, escapedSummary, escapedManualPrice, escapedSearchUrl].join(separator);
             });
             
             return BOM + [header.join(separator), ...rows].join('\n');
@@ -249,16 +293,6 @@
         URL.revokeObjectURL(url);
     }
     
-    /**
-     * Generates a Google search URL for the given model and appends 'kaina Lietuvoje'.
-     * @param {string} model The product model.
-     * @returns {string} The encoded Google search URL.
-     */
-    function generateSearchUrl(model) {
-        const query = `${model} kaina Lietuvoje`;
-        return `https://www.google.com/search?q=${encodeURIComponent(query)}`;
-    }
-
     // --- **SIMULIACIJA**: Bypassing Gemini API ---
 
     /**
@@ -272,7 +306,7 @@
         await new Promise(resolve => setTimeout(resolve, delay)); 
         
         const normalizedModel = model.trim().toUpperCase();
-        const searchUrl = generateSearchUrl(model); // Generate the real search URL
+        const searchUrl = generateGoogleSearchUrl(model); 
         
         let summary;
 
@@ -287,13 +321,14 @@
         } else if (normalizedModel.includes('SAMSUNG S24 ULTRA')) {
             summary = 'SIMULIUOTA: Geriausias Samsung modelis, 6.8 colio Dynamic AMOLED 2x ekranas. Simuliuojama kaina: nuo **1499 EUR**.';
         } else {
-            summary = 'Simuliacija: Nepavyko rasti jokios informacijos apie šį modelį vietinėje duomenų bazėje. Naudokite paieškos mygtuką, kad rastumėte realius duomenis.';
+            summary = 'Simuliacija: Nepavyko rasti jokios informacijos apie šį modelį vietinėje duomenų bazėje.';
         }
 
         return {
             model: model.trim(),
             summary: summary,
-            searchUrl: searchUrl 
+            searchUrl: searchUrl,
+            manualPrice: null // Initial value for manual price
         };
     }
 
@@ -326,19 +361,23 @@
             const result = await findPriceAndSummary(model);
             searchResults.push(result);
             
-            renderResults();
+            // Re-render only after a new result is added
+            renderResults(); 
         }
 
         setLoading(false);
-        resultsMessage.textContent = `**SIMULIUOTA** sąmatos generacija baigta. Rasta ${searchResults.length} rezultatai. Dabar naudokite "Ieškoti Google" mygtukus.`;
+        resultsMessage.textContent = `**SIMULIUOTA** sąmatos generacija baigta. Rasta ${searchResults.length} rezultatai. Įveskite kainas ir naudokite "Ieškoti Google" mygtukus.`;
     }
 
     /**
      * Renders the current searchResults array to the HTML table.
      */
     function renderResults() {
-        resultsTableBody.innerHTML = '';
-        searchResults.forEach(item => {
+        // NOTE: Optimization - only clear and re-render the necessary parts if performance is an issue.
+        // For simplicity, we clear and re-render the whole body on each loop iteration.
+        resultsTableBody.innerHTML = ''; 
+
+        searchResults.forEach((item, index) => {
             const row = resultsTableBody.insertRow();
             // Highlight simulation warning rows yellow
             if (item.summary.includes('Nepavyko rasti jokios informacijos')) {
@@ -347,24 +386,55 @@
                 row.classList.add('hover:bg-gray-100', 'transition', 'duration-150');
             }
 
+            // 1. Model Cell
             const modelCell = row.insertCell();
             modelCell.className = 'px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900';
             modelCell.textContent = item.model;
 
+            // 2. Summary Cell
             const summaryCell = row.insertCell();
             summaryCell.className = 'px-6 py-4 whitespace-pre-wrap text-sm text-gray-700';
             summaryCell.innerHTML = item.summary; 
 
+            // 3. Manual Price Input Cell (NEW)
+            const priceInputCell = row.insertCell();
+            priceInputCell.className = 'px-6 py-4 whitespace-nowrap text-sm';
+            priceInputCell.innerHTML = `
+                <div class="relative">
+                    <input 
+                        type="number" 
+                        min="0"
+                        step="0.01"
+                        data-index="${index}" 
+                        value="${item.manualPrice !== null ? item.manualPrice : ''}"
+                        placeholder="Įvesti kainą..."
+                        oninput="window.updateManualPrice(this)"
+                        class="w-full p-2 pr-8 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition duration-150 text-right"
+                    />
+                    <span class="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 pointer-events-none">EUR</span>
+                </div>
+            `;
+
+
+            // 4. Search Links Cell (UPDATED)
             const searchCell = row.insertCell();
-            searchCell.className = 'px-6 py-4 whitespace-nowrap text-sm';
+            searchCell.className = 'px-6 py-4 whitespace-nowrap text-sm space-y-1 flex flex-col items-start';
             
-            // Render the "Search on Google" button
+            // Google Search Icon SVG (reused for all links)
+            const searchIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 mr-1"><path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.394l3.743 3.744a1 1 0 01-1.414 1.414l-3.744-3.743A7 7 0 012 9z" clip-rule="evenodd" /></svg>`;
+
             searchCell.innerHTML = `
-                <a href="${item.searchUrl}" target="_blank" class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-red-500 hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition duration-150 ease-in-out">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 mr-1">
-                        <path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.394l3.743 3.744a1 1 0 01-1.414 1.414l-3.744-3.743A7 7 0 012 9z" clip-rule="evenodd" />
-                    </svg>
-                    Ieškoti Google
+                <a href="${item.searchUrl}" target="_blank" class="inline-flex items-center justify-center px-2 py-1 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-red-500 hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition duration-150 ease-in-out w-full">
+                    ${searchIcon}
+                    Ieškoti Google (Bendrai)
+                </a>
+                <a href="${generateSiteSearchUrl(item.model, 'bkgrupe.lt')}" target="_blank" class="inline-flex items-center justify-center px-2 py-1 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-indigo-500 hover:bg-indigo-600 transition duration-150 ease-in-out w-full">
+                    ${searchIcon}
+                    Ieškoti bkgrupe.lt
+                </a>
+                <a href="${generateSiteSearchUrl(item.model, 'kaina24.lt')}" target="_blank" class="inline-flex items-center justify-center px-2 py-1 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-indigo-500 hover:bg-indigo-600 transition duration-150 ease-in-out w-full">
+                    ${searchIcon}
+                    Ieškoti kaina24.lt
                 </a>
             `;
         });
@@ -415,7 +485,7 @@
             copyCsvBtn.textContent = 'Nukopijuota!';
             setTimeout(() => {
                 copyCsvBtn.textContent = 'Kopijuoti Tekstą';
-                csvModal.classList.add('hidden');
+                // csvModal.classList.add('hidden'); // Leave modal open for verification
             }, 1500);
         } catch (err) {
             showCustomError('Klaida kopijuojant: Jūsų naršyklė nepalaiko automatinio kopijavimo.');
@@ -425,7 +495,7 @@
     // Initial state setup
     function initializeApp() {
         setLoading(false);
-        modelsTextarea.value = "DS-7608NXI-K1/8P\nApple iPhone 15 Pro\nDell XPS 13 (2024 model)\nSamsung S24 Ultra\nNežinomas Modelis";
+        modelsTextarea.value = "DS-7608NXI-K1/8P\nApple iPhone 15 Pro\nDell XPS 13 (2024 model)\nNežinomas Modelis";
     }
 
     initializeApp();
