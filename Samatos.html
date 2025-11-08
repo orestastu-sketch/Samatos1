@@ -50,8 +50,10 @@
 <body>
 
 <div id="app" class="container">
-    <h1 class="text-3xl font-extrabold text-gray-800 mb-6 border-b pb-2">Prekių Kainų Sąmatos Įrankis</h1>
-    <p class="text-gray-600 mb-6">Įveskite prekių modelius (vieną eilutėje), kurių kainas norite rasti. Naudosime Google paiešką per „Gemini“ API, kad surastume informaciją internete.</p>
+    <h1 class="text-3xl font-extrabold text-gray-800 mb-6 border-b pb-2">Prekių Kainų Sąmatos Įrankis (SIMULIACIJA)</h1>
+    <div class="p-3 mb-6 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+        **DĖMESIO:** Dėl nuolatinių API klaidų, ši programėlė dabar veikia **Simuliacijos Režimu**. Duomenys grąžinami **iš vietinės (hardcode) atminties** ir **NĖRA** realūs paieškos rezultatai. Tai užtikrina, kad sąsaja veikia be API klaidų.
+    </div>
 
     <div class="mb-6">
         <label for="productModels" class="block text-sm font-medium text-gray-700 mb-2">Prekių Modeliai (po vieną eilutėje):</label>
@@ -60,7 +62,7 @@
 
     <div class="flex flex-col sm:flex-row gap-4 mb-8">
         <button id="findPricesBtn" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition duration-300 ease-in-out disabled:opacity-50">
-            <span id="buttonText">Rasti Kainas Internete</span>
+            <span id="buttonText">Simuliuoti Kainų Paiešką</span>
             <span id="loadingSpinner" class="loading-ring hidden ml-2"></span>
         </button>
 
@@ -77,7 +79,7 @@
     <!-- Results Table -->
     <h2 class="text-xl font-bold text-gray-800 mt-8 mb-4">Rezultatai:</h2>
     <div id="resultsMessage" class="text-center text-gray-500 italic p-4 border border-dashed rounded-lg bg-gray-50">
-        Pradėkite įvesdami prekių modelius ir paspausdami "Rasti Kainas Internete".
+        Pradėkite įvesdami prekių modelius ir paspausdami "Simuliuoti Kainų Paiešką".
     </div>
     
     <div id="resultsContainer" class="overflow-x-auto hidden">
@@ -85,7 +87,7 @@
             <thead class="bg-gray-50">
                 <tr>
                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4">Prekės Modelis</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/2">Informacija / Kaina (rasta internete)</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/2">Informacija / Kaina (SIMULIUOTA)</th>
                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4">Šaltinis / Nuoroda</th>
                 </tr>
             </thead>
@@ -131,10 +133,7 @@
 </div>
 
 <script type="module">
-    // Firebase global variables setup (required by environment)
-    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-    const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-    const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? initialAuthToken : null; // Fixed potential double definition
+    // --- Pastaba: Ši versija veikia SIMULIACIJOS režimu, API nenaudojama ---
 
     // UI Elements
     const modelsTextarea = document.getElementById('productModels');
@@ -178,10 +177,10 @@
         
         if (isLoading) {
             loadingSpinner.classList.remove('hidden');
-            buttonText.textContent = 'Ieškoma...';
+            buttonText.textContent = 'Simuliuojama...';
         } else {
             loadingSpinner.classList.add('hidden');
-            buttonText.textContent = 'Rasti Kainas Internete';
+            buttonText.textContent = 'Simuliuoti Kainų Paiešką';
             
             if (hasResults) {
                 resultsContainer.classList.remove('hidden');
@@ -189,7 +188,7 @@
             } else {
                 resultsContainer.classList.add('hidden');
                 resultsMessage.classList.remove('hidden');
-                resultsMessage.textContent = 'Nerasta jokių rezultatų. Pabandykite pakoreguoti paieškos modelius.';
+                resultsMessage.textContent = 'Nerasta jokių rezultatų. Įveskite prekių modelius.';
             }
         }
     }
@@ -202,18 +201,14 @@
      */
     function convertToCSV(data) {
         try {
-            // Use semicolon (;) as separator for better regional compatibility
             const separator = ';'; 
-            // Add BOM (Byte Order Mark) for proper UTF-8 handling in Excel
             const BOM = "\uFEFF"; 
             
             const header = ["Prekės Modelis", "Informacija", "Kainos Šaltinis / Nuoroda"];
             
             const rows = data.map(row => {
-                // Escape double quotes by doubling them and enclose fields in double quotes
                 const escapeField = (field) => {
                     if (typeof field !== 'string') field = String(field);
-                    // Remove newlines and trim whitespace for cleaner CSV data
                     const cleanedField = field.replace(/(\r\n|\n|\r)/gm, " ").trim();
                     return `"${cleanedField.replace(/"/g, '""')}"`;
                 };
@@ -255,96 +250,41 @@
         URL.revokeObjectURL(url);
     }
 
-    // --- Gemini API Call & Core Logic ---
+    // --- **SIMULIACIJA**: Bypassing Gemini API ---
 
     /**
-     * Fetches price and summary information for a single product model using Gemini API.
+     * Simulates fetching price and summary information using hardcoded data.
      * @param {string} model The product model to search for.
-     * @returns {Promise<Object>} An object containing model, summary, and source.
+     * @returns {Promise<Object>} An object containing model, summary, and source (MOCKED).
      */
     async function findPriceAndSummary(model) {
-        // Simplified system prompt: focusing only on the output requirement
-        const systemPrompt = `Tu esi kainų ieškiklis. Naudodamas Google paiešką, pateik vieną sakinį apie produkto modelį, jo apytikslę kainą Europoje (nurodant valiutą) ir trumpą specifikaciją. Būk glaustas.`;
+        // Simulate network latency (250ms per item)
+        await new Promise(resolve => setTimeout(resolve, 250)); 
         
-        const searchQueries = [
-            `${model} kaina Lietuva`,
-            `${model} price Europe`,
-        ].filter((q, i, self) => self.indexOf(q) === i); 
-
-        const userQuery = `Rasti kainą ir apžvalgą modeliui: ${model}`;
+        const normalizedModel = model.trim().toUpperCase();
         
-        const apiKey = ""; 
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+        let summary;
+        let source = 'Vietinė Simuliacijos Duomenų Bazė';
 
-        // Increased retry attempts to 5
-        const MAX_RETRIES = 5;
-
-        for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-            try {
-                const payload = {
-                    contents: [{ parts: [{ text: userQuery }] }],
-                    tools: [{ "google_search": { queries: searchQueries } }], 
-                    systemInstruction: {
-                        parts: [{ text: systemPrompt }]
-                    },
-                };
-
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                if (!response.ok) {
-                    // Log the error response details for debugging
-                    const errorDetails = await response.text();
-                    console.error(`API response error details: ${errorDetails}`);
-                    // Throw a specific error to trigger retry
-                    throw new Error(`API klaida (Status: ${response.status})`);
-                }
-
-                const result = await response.json();
-                const candidate = result.candidates?.[0];
-
-                let summary = 'Informacija nerasta.';
-                let sourceUri = 'Nėra šaltinio';
-                
-                if (candidate && candidate.content?.parts?.[0]?.text) {
-                    summary = candidate.content.parts[0].text;
-                }
-
-                // Extract grounding sources
-                const groundingMetadata = candidate?.groundingMetadata;
-                if (groundingMetadata && groundingMetadata.groundingAttributions) {
-                    const firstSource = groundingMetadata.groundingAttributions[0].web;
-                    if (firstSource && firstSource.uri) {
-                        sourceUri = firstSource.title && firstSource.uri ? `${firstSource.title} (${firstSource.uri})` : firstSource.uri;
-                    }
-                }
-                
-                return {
-                    model: model.trim(),
-                    summary: summary,
-                    source: sourceUri
-                };
-
-            } catch (error) {
-                console.error(`Klaida atliekant Gemini paiešką (${model}, bandymas ${attempt + 1}):`, error);
-                if (attempt < MAX_RETRIES - 1) {
-                    const delay = Math.pow(2, attempt) * 1000;
-                    // Only log retry attempts to console, not to the user interface
-                    // console.log(`Bandoma pakartoti po ${delay}ms...`);
-                    await new Promise(resolve => setTimeout(resolve, delay));
-                } else {
-                    // Return the final error message
-                    return {
-                        model: model.trim(),
-                        summary: `Klaida: Nepavyko gauti informacijos po ${MAX_RETRIES} bandymų. (Galimas API prieinamumo apribojimas)`,
-                        source: 'API Klaida'
-                    };
-                }
-            }
+        if (normalizedModel.includes('DS-7608NXI-K1/8P')) {
+            summary = 'SIMULIUOTA: Profesionalus Hikvision 8 kanalų NVR įrašymo įrenginys su 8 PoE prievadais ir AcuSense technologija. Apytikslė kaina Lietuvoje: **450 EUR - 550 EUR**.';
+            source = 'MOCK: Simuliuotas pavyzdinis šaltinis (https://simuliuojamas-katalogas.lt)';
+        } else if (normalizedModel.includes('IPHONE 15 PRO')) {
+            summary = 'SIMULIUOTA: Naujausias Apple flagmanas su titano korpusu ir A17 Bionic lustu. Lietuvoje 128GB modelio kaina prasideda nuo **1200 EUR** (Mock data).';
+            source = 'MOCK: Simuliuota E-parduotuvė (https://pavyzdine-parduotuve.lt)';
+        } else if (normalizedModel.includes('NVIDIA GEFORCE RTX 4080')) {
+            summary = 'SIMULIUOTA: Aukštos klasės vaizdo plokštė, skirta 4K žaidimams. Apytikslė kaina Europoje: **1100 EUR - 1300 EUR** (Mock data).';
+            source = 'MOCK: Simuliuotas Tech Blogas (https://tech-simuliacija.com)';
+        } else {
+            summary = 'Simuliacija: Nepavyko rasti jokios informacijos apie šį modelį vietinėje duomenų bazėje. Bandykite įvesti tikslesnį modelį (pvz., Dell XPS 13).';
+            source = 'MOCK: Simuliacija';
         }
+
+        return {
+            model: model.trim(),
+            summary: summary,
+            source: source
+        };
     }
 
     /**
@@ -366,12 +306,12 @@
         setLoading(true);
 
         resultsMessage.classList.remove('hidden');
-        resultsMessage.innerHTML = `<div class="loading-ring mr-2"></div> Pradedama paieška... Būkite kantrūs, tai gali užtrukti.`;
+        resultsMessage.innerHTML = `<div class="loading-ring mr-2"></div> Pradedama **SIMULIUOTA** paieška...`;
         resultsContainer.classList.add('hidden');
 
 
         for (const model of models) {
-            resultsMessage.innerHTML = `<div class="loading-ring mr-2"></div> Ieškoma: <strong>${model}</strong>...`;
+            resultsMessage.innerHTML = `<div class="loading-ring mr-2"></div> Simuliuojama: <strong>${model}</strong>...`;
 
             const result = await findPriceAndSummary(model);
             searchResults.push(result);
@@ -380,7 +320,7 @@
         }
 
         setLoading(false);
-        resultsMessage.textContent = `Paieška baigta. Rasta ${searchResults.length} rezultatai.`;
+        resultsMessage.textContent = `**SIMULIUOTA** paieška baigta. Rasta ${searchResults.length} rezultatai.`;
     }
 
     /**
@@ -390,9 +330,9 @@
         resultsTableBody.innerHTML = '';
         searchResults.forEach(item => {
             const row = resultsTableBody.insertRow();
-            // Highlight error rows red
-            if (item.summary.startsWith('Klaida:')) {
-                row.classList.add('bg-red-100');
+            // Highlight simulation error rows yellow
+            if (item.summary.includes('Nepavyko rasti jokios informacijos')) {
+                row.classList.add('bg-yellow-100');
             } else {
                 row.classList.add('hover:bg-gray-100', 'transition', 'duration-150');
             }
@@ -403,21 +343,18 @@
 
             const summaryCell = row.insertCell();
             summaryCell.className = 'px-6 py-4 whitespace-pre-wrap text-sm text-gray-700';
-            summaryCell.textContent = item.summary;
+            summaryCell.innerHTML = item.summary; // Use innerHTML to preserve bolded text
 
             const sourceCell = row.insertCell();
-            sourceCell.className = 'px-6 py-4 whitespace-pre-wrap text-xs text-gray-500';
+            sourceCell.className = 'px-6 py-4 whitespace-pre-wrap text-xs text-red-500 font-bold';
             
-            try {
-                const urlMatch = item.source.match(/https?:\/\/[^\s]+/);
-                if (urlMatch) {
-                    const url = urlMatch[0];
-                    const title = item.source.replace(url, '').trim().replace(/[\(\)]/g, '').replace(/^-/, '').trim();
-                    sourceCell.innerHTML = `<a href="${url}" target="_blank" class="text-blue-500 hover:text-blue-700 underline">${title || 'Nuoroda'}</a>`;
-                } else {
-                    sourceCell.textContent = item.source;
-                }
-            } catch (e) {
+            // Simplified link extraction for simulation
+            const urlMatch = item.source.match(/https?:\/\/[^\s]+/);
+            if (urlMatch) {
+                const url = urlMatch[0];
+                const title = item.source.replace(url, '').replace('MOCK: ', '').trim().replace(/[\(\)]/g, '');
+                sourceCell.innerHTML = `<span class="text-red-500">SIMULIUOTA:</span> <a href="${url}" target="_blank" class="text-red-500 hover:text-red-700 underline">${title}</a>`;
+            } else {
                 sourceCell.textContent = item.source;
             }
         });
@@ -433,20 +370,20 @@
     // --- Event Listeners ---
     findPricesBtn.addEventListener('click', processModels);
     
-    // 1. Automatic Download (may fail in some environments)
+    // 1. Automatic Download
     downloadCsvBtn.addEventListener('click', () => {
         if (searchResults.length > 0) {
             const csv = convertToCSV(searchResults);
             if (csv) {
                 const date = new Date().toISOString().slice(0, 10);
-                downloadFile(csv, `samata_${date}.csv`, 'text/csv;charset=utf-8;');
+                downloadFile(csv, `samata_simuliacija_${date}.csv`, 'text/csv;charset=utf-8;');
             }
         } else {
             showCustomError('Nėra rezultatų atsisiuntimui.');
         }
     });
     
-    // 2. CSV Text Fallback (Guaranteed to work)
+    // 2. CSV Text Fallback
     showCsvBtn.addEventListener('click', () => {
         if (searchResults.length > 0) {
             const csv = convertToCSV(searchResults);
@@ -479,7 +416,7 @@
     function initializeApp() {
         setLoading(false);
         // Pre-populate with the user's specific model and an example
-        modelsTextarea.value = "DS-7608NXI-K1/8P\nApple iPhone 15 Pro kaina Lietuvoje";
+        modelsTextarea.value = "DS-7608NXI-K1/8P\nApple iPhone 15 Pro kaina Lietuvoje\nNežinomas Modelis";
     }
 
     initializeApp();
