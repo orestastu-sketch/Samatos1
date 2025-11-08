@@ -68,7 +68,7 @@
             Atsisiųsti Sąmatą (CSV)
         </button>
         
-        <!-- NEW FALLBACK BUTTON -->
+        <!-- FALLBACK BUTTON -->
         <button id="showCsvBtn" disabled class="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition duration-300 ease-in-out disabled:opacity-50">
             Rodyti CSV tekstą (Kopijuoti)
         </button>
@@ -140,7 +140,7 @@
     const modelsTextarea = document.getElementById('productModels');
     const findPricesBtn = document.getElementById('findPricesBtn');
     const downloadCsvBtn = document.getElementById('downloadCsvBtn');
-    const showCsvBtn = document.getElementById('showCsvBtn'); // NEW
+    const showCsvBtn = document.getElementById('showCsvBtn'); 
     const resultsTableBody = document.getElementById('resultsTableBody');
     const resultsContainer = document.getElementById('resultsContainer');
     const resultsMessage = document.getElementById('resultsMessage');
@@ -148,9 +148,9 @@
     const buttonText = document.getElementById('buttonText');
     const errorModal = document.getElementById('errorModal');
     const errorModalMessage = document.getElementById('errorModalMessage');
-    const csvModal = document.getElementById('csvModal'); // NEW
-    const csvContent = document.getElementById('csvContent'); // NEW
-    const copyCsvBtn = document.getElementById('copyCsvBtn'); // NEW
+    const csvModal = document.getElementById('csvModal'); 
+    const csvContent = document.getElementById('csvContent'); 
+    const copyCsvBtn = document.getElementById('copyCsvBtn'); 
 
     // State
     let searchResults = [];
@@ -174,7 +174,7 @@
         findPricesBtn.disabled = isLoading;
         const hasResults = searchResults.length > 0;
         downloadCsvBtn.disabled = isLoading || !hasResults;
-        showCsvBtn.disabled = isLoading || !hasResults; // Control fallback button
+        showCsvBtn.disabled = isLoading || !hasResults; 
         
         if (isLoading) {
             loadingSpinner.classList.remove('hidden');
@@ -196,7 +196,7 @@
 
     /**
      * Converts the searchResults array to a CSV string.
-     * Reverts to semicolon for better European Excel compatibility.
+     * Uses semicolon for better European Excel compatibility.
      * @param {Array<Object>} data The data array.
      * @returns {string} The CSV formatted string.
      */
@@ -261,9 +261,18 @@
      * @returns {Promise<Object>} An object containing model, summary, and source.
      */
     async function findPriceAndSummary(model) {
-        const systemPrompt = `Tu esi automatizuotas kainų ieškiklis. Tavo užduotis yra naudoti Google paiešką, kad rastum tikslią ir naujausią informaciją apie nurodytą produktą. Atsakyk itin glaustai, vienu sakiniu, nurodydamas produkto pavadinimą, jo apytikslę kainą Lietuvoje arba Europoje (jei įmanoma, nurodyk valiutą) ir trumpą pagrindinę specifikaciją. Kainos ieškokite kuo tikslesnės. Jei kainos rasti neįmanoma, nurodykite tai.`;
+        // Updated system prompt for better search focus
+        const systemPrompt = `Tu esi automatizuotas kainų ieškiklis. Naudok Google paiešką, kad rastum tikslią ir naujausią informaciją apie nurodytą produktą. Atsakyk itin glaustai, vienu sakiniu, nurodydamas produkto pavadinimą, jo apytikslę kainą Lietuvoje arba Europoje (nurodyk valiutą) ir trumpą pagrindinę specifikaciją. Kainos ieškok kuo tikslesnės. Jei kainos rasti neįmanoma, nurodyk tai. Vengti klaidos.`;
         
-        const userQuery = `Kaina ir apžvalga: ${model} Lietuva`;
+        // **IMPROVEMENT**: Create better, targeted search queries
+        const searchQueries = [
+            `${model} kaina Lietuva`,
+            `${model} price Europe`,
+            // Fallback to model number only, which is often best for long, complex models
+            `${model.split(' ')[0]} kaina` 
+        ].filter((q, i, self) => self.indexOf(q) === i); // Remove duplicates
+
+        const userQuery = `Rasti naujausią kainą ir trumpą apžvalgą modeliui: ${model}`;
         
         const apiKey = ""; // Canvas environment handles this key
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
@@ -273,8 +282,7 @@
             try {
                 const payload = {
                     contents: [{ parts: [{ text: userQuery }] }],
-                    // IMPORTANT: Generate queries in both Lithuanian and English for better search results
-                    tools: [{ "google_search": { queries: [`${model} kaina Lietuva`, `${model} price Europe`] } }], 
+                    tools: [{ "google_search": { queries: searchQueries } }], 
                     systemInstruction: {
                         parts: [{ text: systemPrompt }]
                     },
@@ -287,7 +295,11 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error(`API klaida: ${response.status} ${response.statusText}`);
+                    // Log the error response details for debugging
+                    const errorDetails = await response.text();
+                    console.error(`API response error details: ${errorDetails}`);
+                    // Throw a specific error to trigger retry
+                    throw new Error(`API klaida (Status: ${response.status})`);
                 }
 
                 const result = await response.json();
@@ -321,9 +333,10 @@
                     const delay = Math.pow(2, attempt) * 1000;
                     await new Promise(resolve => setTimeout(resolve, delay));
                 } else {
+                    // Return the error message visible to the user
                     return {
                         model: model.trim(),
-                        summary: `Klaida: Nepavyko gauti informacijos po ${attempt + 1} bandymų.`,
+                        summary: `Klaida: Nepavyko gauti informacijos po ${attempt + 1} bandymų. (Patikrinkite modelio tikslumą)`,
                         source: 'API Klaida'
                     };
                 }
@@ -360,7 +373,6 @@
             const result = await findPriceAndSummary(model);
             searchResults.push(result);
             
-            // Render the new row immediately
             renderResults();
         }
 
@@ -375,7 +387,12 @@
         resultsTableBody.innerHTML = '';
         searchResults.forEach(item => {
             const row = resultsTableBody.insertRow();
-            row.classList.add('hover:bg-gray-100', 'transition', 'duration-150');
+            // Highlight error rows red
+            if (item.summary.startsWith('Klaida:')) {
+                row.classList.add('bg-red-100');
+            } else {
+                row.classList.add('hover:bg-gray-100', 'transition', 'duration-150');
+            }
 
             const modelCell = row.insertCell();
             modelCell.className = 'px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900';
@@ -461,7 +478,7 @@
     function initializeApp() {
         setLoading(false);
         // Pre-populate with example data
-        modelsTextarea.value = "Naujas išmanusis telefonas 2024\nNešiojamas kompiuteris su RTX 4090";
+        modelsTextarea.value = "DS-7608NXI-K1/8P\nSamsung S24 Ultra kaina";
     }
 
     initializeApp();
