@@ -250,40 +250,54 @@
 
     /**
      * Copies the given text to the clipboard and shows feedback on the element.
+     * NAUDOJAMA PATIKIMA document.execCommand('copy') METODIKA DEL IFRAME APRIBOJIMŲ.
      * @param {string} textToCopy The text to copy.
      * @param {HTMLElement} buttonElement The button element to show feedback on.
      */
-    function copyTextToClipboard(textToCopy, buttonElement) {
+    window.copyTextToClipboard = function(textToCopy, buttonElement) {
         const originalText = buttonElement.innerHTML;
+        
+        // 1. Sukurti laikiną textarea
         const tempTextArea = document.createElement('textarea');
         tempTextArea.value = textToCopy;
+        // Padaryti textarea nematomą, bet pasiekiamą DOM
+        tempTextArea.style.position = 'fixed';
+        tempTextArea.style.top = '0';
+        tempTextArea.style.left = '0';
+        tempTextArea.style.opacity = '0';
         document.body.appendChild(tempTextArea);
         
         try {
+            // 2. Pasirinkti ir kopijuoti tekstą
             tempTextArea.select();
+            tempTextArea.setSelectionRange(0, 99999); // Mobiliems įrenginiams
             document.execCommand('copy');
             
-            // Show successful copy feedback
-            buttonElement.classList.remove('bg-purple-500', 'hover:bg-purple-600');
+            // 3. Rodyti sėkmės atsaką
+            buttonElement.classList.remove('bg-purple-500', 'hover:bg-purple-600', 'bg-red-500', 'hover:bg-red-600');
             buttonElement.classList.add('bg-green-500', 'hover:bg-green-600');
             buttonElement.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 mr-1"><path fill-rule="evenodd" d="M16.704 4.032a.75.75 0 01.294.598V15.75A2.25 2.25 0 0114.75 18H5.25A2.25 2.25 0 013 15.75V4.75c0-1.036.845-1.875 1.875-1.875h7.25c.214 0 .42.046.604.133L16.704 4.032zM15.25 5h-10A.75.75 0 004.5 5.75v10A.75.75 0 005.25 17h9.5a.75.75 0 00.75-.75V5.75a.75.75 0 00-.75-.75z" clip-rule="evenodd" /></svg> Nukopijuota!`;
 
         } catch (err) {
             console.error('Kopijavimas nepavyko:', err);
-            buttonElement.classList.remove('bg-purple-500', 'hover:bg-purple-600');
+            // Rodyti klaidos atsaką
+            buttonElement.classList.remove('bg-purple-500', 'hover:bg-purple-600', 'bg-green-500', 'hover:bg-green-600');
             buttonElement.classList.add('bg-red-500', 'hover:bg-red-600');
             buttonElement.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 mr-1"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94l-1.72-1.72z" clip-rule="evenodd" /></svg> Klaida!`;
+            // Pranešimas vartotojui apie klaidą
+            showCustomError("Nepavyko nukopijuoti. Prašome pabandyti dar kartą arba nukopijuoti modelio pavadinimą ranka.");
         }
         
+        // 4. Pašalinti laikiną elementą
         document.body.removeChild(tempTextArea);
 
-        // Reset button after a short time
+        // 5. Atstatyti mygtuką po 1.5 sekundės
         setTimeout(() => {
             buttonElement.classList.remove('bg-green-500', 'hover:bg-green-600', 'bg-red-500', 'hover:bg-red-600');
             buttonElement.classList.add('bg-purple-500', 'hover:bg-purple-600');
             buttonElement.innerHTML = originalText;
         }, 1500);
-    }
+    };
 
     // Attach to window so it can be called directly from oninput attribute
     window.updateManualPrice = function(inputElement) {
@@ -296,7 +310,6 @@
         if (index >= 0 && index < searchResults.length) {
             // Save as number or null if input is empty/invalid
             searchResults[index].manualPrice = isNaN(value) ? null : value;
-            // Įvesties laukelio vertė atnaujinama, kad atspindėtų skaitmeninę vertę, bet paliekamas ir tuščias laukas, jei įvestis invalidi.
             // Pakeista į "text" input type, kad būtų galima įvesti ir kablelį, ir tašką.
             inputElement.value = inputElement.value.replace(',', '.');
         }
@@ -504,7 +517,7 @@
                     Bkgrupe.lt (Atidaryti Svetainę)
                 </a>
                 
-                <!-- Kopijuoti Modelį -->
+                <!-- Kopijuoti Modelį - NAUDOJA PATIKIMĄ COPY FUNKCIJĄ -->
                 <button onclick="window.copyTextToClipboard('${item.model.replace(/'/g, "\\'")}', this)" class="inline-flex items-center justify-center px-2 py-1 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-purple-500 hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition duration-150 ease-in-out w-full">
                     ${copyIcon}
                     Kopijuoti Modelį
